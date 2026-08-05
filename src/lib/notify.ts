@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { Resend } from "resend";
 import { notifyDiscord } from "@/lib/discord";
+import { absoluteUrl } from "@/lib/site-url";
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
@@ -27,7 +28,7 @@ export async function notifyApplicationEvent(params: {
 
   await Promise.all(users.map((u) => notifyInApp(u.id, type, message, link)));
 
-  await notifyDiscord("SYSTEM", `🔔 ${message}`);
+  await notifyDiscord("SYSTEM", { content: `🔔 ${message}`, url: absoluteUrl(link) });
 
   if (resend) {
     await Promise.all(

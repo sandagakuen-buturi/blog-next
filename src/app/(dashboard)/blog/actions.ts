@@ -11,6 +11,7 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { enforceRateLimit } from "@/lib/ratelimit";
 import { deleteAttachmentsForResource } from "@/lib/attachments";
 import { recordAudit } from "@/lib/audit";
+import { absoluteUrl } from "@/lib/site-url";
 
 const visibilitySchema: z.ZodType<VisibilityInput> = z.discriminatedUnion("scope", [
   z.object({ scope: z.literal("PUBLIC_STUDENT") }),
@@ -97,7 +98,11 @@ export async function createBlogPost(
 
     const isImmediatelyPublished = post.publishedAt !== null && post.publishedAt <= new Date();
     if (isImmediatelyPublished) {
-      await notifyDiscord(department, `📝 新しいブログ投稿: **${post.title}**\n投稿者: ${author.name}`);
+      await notifyDiscord(department, {
+        content: `📝 新しいブログ投稿: **${post.title}**\n投稿者: ${author.name}`,
+        url: absoluteUrl(`/blog/${post.id}`),
+        rawSource: post.bodyMarkdown,
+      });
     }
 
     redirectTo = `/blog/${post.id}`;
