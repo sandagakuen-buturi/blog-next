@@ -44,6 +44,7 @@ model User {
   emailAudits      EmailAudit[]
   auditLogs        AuditLog[]
   notifications    Notification[]
+  attachments      Attachment[]
 }
 
 model Session {
@@ -341,4 +342,23 @@ model Notification {
   link      String?
   readAt    DateTime?
   createdAt DateTime  @default(now())
+}
+
+/**
+ * ブログ画像・申請添付ファイルの共通モデル。実ファイルはRustFS(S3互換)側に置き、
+ * ここにはオブジェクトキーとメタデータのみを持つ。resourceType/resourceIdは
+ * VisibilityPolicyと同じポリモーフィックな参照方式(BLOG_POST/APPLICATION等)。
+ */
+model Attachment {
+  id           String   @id @default(cuid())
+  key          String   @unique
+  resourceType String
+  resourceId   String
+  fileName     String
+  contentType  String
+  uploaderId   String
+  uploader     User     @relation(fields: [uploaderId], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([resourceType, resourceId])
 }
