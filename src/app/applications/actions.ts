@@ -9,6 +9,7 @@ import { verifySession } from "@/lib/dal";
 import { resolveApprovers, resolveSystemAdmins } from "@/lib/approval";
 import { notifyApplicationEvent } from "@/lib/notify";
 import { buildDataSchema, fieldDefSchema } from "@/lib/application-fields";
+import { enforceRateLimit } from "@/lib/ratelimit";
 
 const submitSchema = z.object({ templateId: z.string().min(1) });
 
@@ -66,6 +67,7 @@ export async function createApplication(
 
   try {
     const user = await verifySession();
+    await enforceRateLimit("application-submit", user.id, 10, 600);
     const { templateId } = submitSchema.parse({ templateId: formData.get("templateId") });
 
     const template = await prisma.applicationTemplate.findUniqueOrThrow({

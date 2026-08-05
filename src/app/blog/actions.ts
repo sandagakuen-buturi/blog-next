@@ -8,6 +8,7 @@ import { requirePermission, verifySession } from "@/lib/dal";
 import { canView, setVisibilityPolicy, type VisibilityInput } from "@/lib/visibility";
 import { notifyDiscord } from "@/lib/discord";
 import { PERMISSIONS } from "@/lib/permissions";
+import { enforceRateLimit } from "@/lib/ratelimit";
 
 const visibilitySchema: z.ZodType<VisibilityInput> = z.discriminatedUnion("scope", [
   z.object({ scope: z.literal("PUBLIC_STUDENT") }),
@@ -40,6 +41,7 @@ export async function createBlogPost(
 
   try {
     const author = await requirePermission(PERMISSIONS.CAN_POST_BLOG);
+    await enforceRateLimit("blog-post", author.id, 5, 600);
 
     if (!author.department) {
       return {
@@ -118,6 +120,7 @@ const createCommentSchema = z.object({
 
 export async function createComment(formData: FormData) {
   const user = await verifySession();
+  await enforceRateLimit("blog-comment", user.id, 20, 300);
 
   const parsed = createCommentSchema.parse({
     postId: formData.get("postId"),

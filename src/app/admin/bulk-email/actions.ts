@@ -6,6 +6,7 @@ import { requirePermission } from "@/lib/dal";
 import { sendBulkEmail } from "@/lib/mail";
 import { recordAudit } from "@/lib/audit";
 import { PERMISSIONS } from "@/lib/permissions";
+import { enforceRateLimit } from "@/lib/ratelimit";
 
 const sendSchema = z.object({
   roleIds: z.array(z.string()),
@@ -23,6 +24,7 @@ export async function sendBulkEmailAction(
 ): Promise<SendBulkEmailState> {
   try {
     const actor = await requirePermission(PERMISSIONS.CAN_SEND_BULK_EMAIL);
+    await enforceRateLimit("bulk-email", actor.id, 3, 600);
 
     const parsed = sendSchema.parse({
       roleIds: formData.getAll("roleIds"),

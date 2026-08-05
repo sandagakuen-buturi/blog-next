@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/dal";
 import { PERMISSIONS } from "@/lib/permissions";
 import { buildObjectKey, createPresignedUploadUrl } from "@/lib/storage";
+import { enforceRateLimit } from "@/lib/ratelimit";
 
 const ALLOWED_CONTENT_TYPES = new Set([
   "image/png",
@@ -49,6 +50,15 @@ async function assertCanAttach(
 
 export async function POST(request: Request) {
   const user = await verifySession();
+
+  try {
+    await enforceRateLimit("upload", user.id, 20, 300);
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "レート制限に達しました。" },
+      { status: 429 },
+    );
+  }
 
   const body = await request.json().catch(() => null);
   const parsed = requestSchema.safeParse(body);

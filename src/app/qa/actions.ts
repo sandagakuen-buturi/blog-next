@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePermission, verifySession } from "@/lib/dal";
 import { PERMISSIONS } from "@/lib/permissions";
+import { enforceRateLimit } from "@/lib/ratelimit";
 
 const createQuestionSchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -23,6 +24,7 @@ export async function createQuestion(
 
   try {
     const author = await requirePermission(PERMISSIONS.CAN_ASK_QA);
+    await enforceRateLimit("qa-question", author.id, 5, 600);
 
     const parsed = createQuestionSchema.parse({
       title: formData.get("title"),
@@ -55,6 +57,7 @@ const createAnswerSchema = z.object({
 
 export async function createAnswer(formData: FormData) {
   const author = await requirePermission(PERMISSIONS.CAN_ANSWER_QA);
+  await enforceRateLimit("qa-answer", author.id, 20, 300);
 
   const parsed = createAnswerSchema.parse({
     questionId: formData.get("questionId"),

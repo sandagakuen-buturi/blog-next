@@ -8,6 +8,7 @@ import { requirePermission, verifySession } from "@/lib/dal";
 import { canView, setVisibilityPolicy } from "@/lib/visibility";
 import { recordAudit } from "@/lib/audit";
 import { PERMISSIONS } from "@/lib/permissions";
+import { enforceRateLimit } from "@/lib/ratelimit";
 
 const createBoardSchema = z.object({
   name: z.string().trim().min(1).max(100),
@@ -68,6 +69,8 @@ export async function createThread(
       return { error: "掲示板の利用が停止されています。" };
     }
 
+    await enforceRateLimit("board-thread", user.id, 10, 600);
+
     const parsed = createThreadSchema.parse({
       boardId: formData.get("boardId"),
       title: formData.get("title"),
@@ -111,6 +114,8 @@ export async function createPost(formData: FormData) {
   if (user.boardBannedAt) {
     throw new Error("掲示板の利用が停止されています。");
   }
+
+  await enforceRateLimit("board-post", user.id, 20, 300);
 
   const parsed = createPostSchema.parse({
     threadId: formData.get("threadId"),
