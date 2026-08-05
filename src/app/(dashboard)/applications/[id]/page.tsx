@@ -8,8 +8,10 @@ import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { AttachmentList } from "@/components/attachment-list";
 import { FileUploadWidget } from "@/components/file-upload-widget";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DecisionForm } from "./decision-form";
 import { ResubmitForm } from "./resubmit-form";
+import { deleteApplication } from "../actions";
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING: "審査中",
@@ -64,9 +66,24 @@ export default async function ApplicationDetailPage({
 
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-6 p-8">
-      <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-semibold">{application.template.name}</h1>
-        <Badge variant="outline">{STATUS_LABELS[application.status]}</Badge>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-semibold">{application.template.name}</h1>
+          <Badge variant="outline">{STATUS_LABELS[application.status]}</Badge>
+        </div>
+        {(isApplicant || canManageTemplates) &&
+          (application.status !== "APPROVED" || canManageTemplates) && (
+            <form action={deleteApplication}>
+              <input type="hidden" name="applicationId" value={application.id} />
+              <ConfirmSubmitButton
+                confirmMessage="この申請を削除しますか?元に戻せません。"
+                variant="destructive"
+                size="sm"
+              >
+                削除
+              </ConfirmSubmitButton>
+            </form>
+          )}
       </div>
       <p className="text-muted-foreground text-sm">申請者: {application.applicant.name}</p>
 

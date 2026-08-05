@@ -10,6 +10,8 @@ import { resolveApprovers, resolveSystemAdmins } from "@/lib/approval";
 import { notifyApplicationEvent } from "@/lib/notify";
 import { buildDataSchema, fieldDefSchema } from "@/lib/application-fields";
 import { enforceRateLimit } from "@/lib/ratelimit";
+import { deleteAttachmentsForResource } from "@/lib/attachments";
+import { PERMISSIONS } from "@/lib/permissions";
 
 const submitSchema = z.object({ templateId: z.string().min(1) });
 
@@ -249,4 +251,31 @@ export async function resubmitApplication(formData: FormData) {
   }
 
   revalidatePath(`/applications/${applicationId}`);
+}
+
+const deleteApplicationSchema = z.object({ applicationId: z.string().min(1) });
+
+export async function deleteApplication(formData: FormData) {
+  const user = await verifySession();
+
+  const { applicationId } = deleteApplicationSchema.parse({
+    applicationId: formData.get("applicationId"),
+  });
+
+  const application = await prisma.application.findUniqueOrThrow({
+    where: { id: applicationId },
+  });
+
+  const isAdmin = (user.role.permissions & PERMISSIONS.CAN_MANAGE_APPLICATION_TEMPLATES) !== 0n;
+  if (application.applicantId !== user.id && !isAdmin) {
+    throw new Error("自分の申請のみ削除できます。");
+  }
+  if (application.status === "APPROVED" && !isAdmin) {
+    throw new Error("承認済みの申請は記録として削除できません。");
+  }
+
+  await deleteAttachmentsForResource("APPLICATION", applicationId);
+  await prisma.application.delete({ where: { id: applicationId } });
+
+  redirect("/applications");
 }
