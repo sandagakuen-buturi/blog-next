@@ -32,7 +32,15 @@ export async function canView(
   return evaluatePolicy(user, policy);
 }
 
-function evaluatePolicy(
+export type PolicyLike = {
+  scope: VisibilityScope;
+  minRoleLevel: number | null;
+  targetDepartment: Department | null;
+  targetUserIds: string[];
+};
+
+/** 一覧表示等、既に取得済みのポリシーを再クエリなしで評価したい場合に使う。 */
+export function evaluatePolicy(
   user: ViewerUser,
   policy: {
     scope: VisibilityScope;
