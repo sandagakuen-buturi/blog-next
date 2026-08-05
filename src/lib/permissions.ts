@@ -56,9 +56,15 @@ const KACHO_PERMISSIONS = combinePermissions([
 
 const ADMIN_PERMISSIONS = combinePermissions(Object.values(PERMISSIONS));
 
+/**
+ * 「学生」ロールは新規サインアップ時にBetter-Authの `additionalFields.roleId.defaultValue`
+ * (同期関数のみ許容、DBルックアップ不可)から参照するため、固定IDを持たせる。
+ */
+export const DEFAULT_STUDENT_ROLE_ID = "role_student_default";
+
 /** prisma/seed.ts から参照するデフォルトロール定義。 */
 export const DEFAULT_ROLES = [
-  { name: "学生", level: ROLE_LEVELS.STUDENT, permissions: 0n },
+  { id: DEFAULT_STUDENT_ROLE_ID, name: "学生", level: ROLE_LEVELS.STUDENT, permissions: 0n },
   { name: "物理部IT課員", level: ROLE_LEVELS.IT_MEMBER, permissions: CLUB_MEMBER_PERMISSIONS },
   { name: "物理部ロボット課員", level: ROLE_LEVELS.ROBOT_MEMBER, permissions: CLUB_MEMBER_PERMISSIONS },
   { name: "物理部ハイブリッド", level: ROLE_LEVELS.HYBRID_MEMBER, permissions: CLUB_MEMBER_PERMISSIONS },

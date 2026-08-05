@@ -11,6 +11,7 @@ async function main() {
       where: { name: role.name },
       update: { level: role.level, permissions: role.permissions },
       create: {
+        ...("id" in role ? { id: role.id } : {}),
         name: role.name,
         level: role.level,
         permissions: role.permissions,
