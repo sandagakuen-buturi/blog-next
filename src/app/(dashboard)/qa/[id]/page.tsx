@@ -4,8 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { SafeMarkdown } from "@/components/safe-markdown";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { AnswerForm } from "./answer-form";
 import { BestAnswerButton } from "./best-answer-button";
+import { DeleteAnswerButton } from "./delete-answer-button";
+import { deleteQuestion } from "../actions";
 
 export default async function QaQuestionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -22,18 +25,32 @@ export default async function QaQuestionPage({ params }: { params: Promise<{ id:
 
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-6 p-8">
-      <div>
-        <h1 className="text-2xl font-semibold">{question.title}</h1>
-        <div className="mt-1 flex flex-wrap items-center gap-2">
-          {question.tags.map((tag) => (
-            <Badge key={tag} variant="outline">
-              {tag}
-            </Badge>
-          ))}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold">{question.title}</h1>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            {question.tags.map((tag) => (
+              <Badge key={tag} variant="outline">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {question.author.name} / {question.createdAt.toLocaleDateString("ja-JP")}
+          </p>
         </div>
-        <p className="text-muted-foreground mt-1 text-sm">
-          {question.author.name} / {question.createdAt.toLocaleDateString("ja-JP")}
-        </p>
+        {isQuestioner && (
+          <form action={deleteQuestion}>
+            <input type="hidden" name="questionId" value={question.id} />
+            <ConfirmSubmitButton
+              confirmMessage="この質問を削除しますか?回答も全て削除されます。"
+              variant="destructive"
+              size="sm"
+            >
+              削除
+            </ConfirmSubmitButton>
+          </form>
+        )}
       </div>
 
       <SafeMarkdown>{question.body}</SafeMarkdown>
@@ -48,7 +65,12 @@ export default async function QaQuestionPage({ params }: { params: Promise<{ id:
             >
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">{answer.author.name}</span>
-                {answer.isBestAnswer && <Badge>ベストアンサー</Badge>}
+                <div className="flex items-center gap-2">
+                  {answer.isBestAnswer && <Badge>ベストアンサー</Badge>}
+                  {answer.authorId === user.id && (
+                    <DeleteAnswerButton answerId={answer.id} questionId={question.id} />
+                  )}
+                </div>
               </div>
               <div className="mt-1">
                 <SafeMarkdown>{answer.body}</SafeMarkdown>

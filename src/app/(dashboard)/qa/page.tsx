@@ -17,9 +17,12 @@ export default async function QaListPage() {
   const canAsk = (user.role.permissions & PERMISSIONS.CAN_ASK_QA) !== 0n;
 
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-6 p-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">部員内QA</h1>
+    <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="flex items-center justify-between gap-4 border-b pb-5">
+        <div>
+          <h1 className="text-[1.65rem] leading-tight font-semibold tracking-tight">部員内QA</h1>
+          <p className="text-muted-foreground mt-1 text-sm">質問と回答を部内で共有</p>
+        </div>
         {canAsk && (
           <Button render={<Link href="/qa/new" />} nativeButton={false}>
             質問する
@@ -27,13 +30,13 @@ export default async function QaListPage() {
         )}
       </div>
 
-      <ul className="flex flex-col gap-4">
+      <ul className="grid gap-3">
         {questions.map((question) => (
-          <li key={question.id} className="rounded-lg border p-4">
-            <Link href={`/qa/${question.id}`} className="text-lg font-medium hover:underline">
+          <li key={question.id} className="rounded-lg border bg-card p-4 shadow-xs transition-colors hover:border-primary/25 hover:bg-muted/35">
+            <Link href={`/qa/${question.id}`} className="text-base font-semibold tracking-tight hover:underline">
               {question.title}
             </Link>
-            <div className="mt-1 flex flex-wrap items-center gap-2">
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
               {question.tags.map((tag) => (
                 <Badge key={tag} variant="outline">
                   {tag}
@@ -47,7 +50,9 @@ export default async function QaListPage() {
           </li>
         ))}
         {questions.length === 0 && (
-          <p className="text-muted-foreground text-sm">まだ質問はありません。</p>
+          <p className="text-muted-foreground rounded-lg border border-dashed bg-card/60 px-4 py-8 text-center text-sm">
+            まだ質問はありません。
+          </p>
         )}
       </ul>
     </main>

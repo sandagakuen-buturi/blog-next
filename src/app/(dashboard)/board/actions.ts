@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePermission, verifySession } from "@/lib/dal";
-import { canView, setVisibilityPolicy } from "@/lib/visibility";
+import { canView, setVisibilityPolicy, deleteVisibilityPolicy } from "@/lib/visibility";
 import { recordAudit } from "@/lib/audit";
 import { PERMISSIONS } from "@/lib/permissions";
 import { enforceRateLimit } from "@/lib/ratelimit";
@@ -155,6 +155,69 @@ export async function banBoardUser(formData: FormData) {
   });
 
   revalidatePath("/board");
+}
+
+const deletePostSchema = z.object({
+  postId: z.string().min(1),
+  boardId: z.string().min(1),
+  threadId: z.string().min(1),
+});
+
+export async function deletePost(formData: FormData) {
+  const user = await verifySession();
+
+  const parsed = deletePostSchema.parse({
+    postId: formData.get("postId"),
+    boardId: formData.get("boardId"),
+    threadId: formData.get("threadId"),
+  });
+
+  const post = await prisma.post.findUniqueOrThrow({ where: { id: parsed.postId } });
+  const canModerate = (user.role.permissions & PERMISSIONS.CAN_BAN_BOARD_USER) !== 0n;
+  if (post.authorId !== user.id && !canModerate) {
+    throw new Error("このレスを削除する権限がありません。");
+  }
+
+  await prisma.post.delete({ where: { id: parsed.postId } });
+  revalidatePath(`/board/${parsed.boardId}/${parsed.threadId}`);
+}
+
+const deleteThreadSchema = z.object({ threadId: z.string().min(1), boardId: z.string().min(1) });
+
+export async function deleteThread(formData: FormData) {
+  const user = await verifySession();
+
+  const { threadId, boardId } = deleteThreadSchema.parse({
+    threadId: formData.get("threadId"),
+    boardId: formData.get("boardId"),
+  });
+
+  const thread = await prisma.thread.findUniqueOrThrow({ where: { id: threadId } });
+  const canModerate = (user.role.permissions & PERMISSIONS.CAN_BAN_BOARD_USER) !== 0n;
+  if (thread.authorId !== user.id && !canModerate) {
+    throw new Error("このスレッドを削除する権限がありません。");
+  }
+
+  await prisma.thread.delete({ where: { id: threadId } });
+  redirect(`/board/${boardId}`);
+}
+
+const deleteBoardSchema = z.object({ boardId: z.string().min(1) });
+
+export async function deleteBoard(formData: FormData) {
+  const user = await verifySession();
+
+  const { boardId } = deleteBoardSchema.parse({ boardId: formData.get("boardId") });
+
+  const board = await prisma.board.findUniqueOrThrow({ where: { id: boardId } });
+  const canModerate = (user.role.permissions & PERMISSIONS.CAN_BAN_BOARD_USER) !== 0n;
+  if (board.creatorId !== user.id && !canModerate) {
+    throw new Error("この板を削除する権限がありません。");
+  }
+
+  await prisma.board.delete({ where: { id: boardId } });
+  await deleteVisibilityPolicy("BOARD", boardId);
+  redirect("/board");
 }
 
 export async function unbanBoardUser(formData: FormData) {

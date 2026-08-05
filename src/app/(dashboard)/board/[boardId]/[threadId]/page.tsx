@@ -5,6 +5,7 @@ import { canView } from "@/lib/visibility";
 import { PERMISSIONS } from "@/lib/permissions";
 import { ReplyForm } from "./reply-form";
 import { BanButton } from "./ban-button";
+import { DeletePostButton } from "./delete-post-button";
 
 export default async function ThreadPage({
   params,
@@ -42,9 +43,12 @@ export default async function ThreadPage({
               <span className="text-sm font-medium">
                 {index + 1}. {post.author.name}
               </span>
-              {canBan && post.authorId !== user.id && (
-                <BanButton userId={post.authorId} />
-              )}
+              <div className="flex items-center gap-1">
+                {(post.authorId === user.id || canBan) && (
+                  <DeletePostButton postId={post.id} boardId={boardId} threadId={threadId} />
+                )}
+                {canBan && post.authorId !== user.id && <BanButton userId={post.authorId} />}
+              </div>
             </div>
             <p className="mt-1 text-sm whitespace-pre-wrap">{post.body}</p>
             <p className="text-muted-foreground mt-1 text-xs">

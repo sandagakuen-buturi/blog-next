@@ -5,10 +5,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePermission, verifySession } from "@/lib/dal";
-import { canView, setVisibilityPolicy, type VisibilityInput } from "@/lib/visibility";
+import { canView, setVisibilityPolicy, deleteVisibilityPolicy, type VisibilityInput } from "@/lib/visibility";
 import { notifyDiscord } from "@/lib/discord";
 import { PERMISSIONS } from "@/lib/permissions";
 import { enforceRateLimit } from "@/lib/ratelimit";
+import { deleteAttachmentsForResource } from "@/lib/attachments";
+import { recordAudit } from "@/lib/audit";
 
 const visibilitySchema: z.ZodType<VisibilityInput> = z.discriminatedUnion("scope", [
   z.object({ scope: z.literal("PUBLIC_STUDENT") }),
@@ -175,4 +177,36 @@ export async function deleteComment(formData: FormData) {
 
   await prisma.comment.delete({ where: { id: parsed.commentId } });
   revalidatePath(`/blog/${parsed.postId}`);
+}
+
+const deletePostSchema = z.object({ postId: z.string().min(1) });
+
+export async function deleteBlogPost(formData: FormData) {
+  const user = await verifySession();
+
+  const { postId } = deletePostSchema.parse({ postId: formData.get("postId") });
+
+  const post = await prisma.blogPost.findUniqueOrThrow({ where: { id: postId } });
+
+  const isAuthor = post.authorId === user.id;
+  const canModerate = (user.role.permissions & PERMISSIONS.CAN_MODERATE_BLOG) !== 0n;
+  if (!isAuthor && !canModerate) {
+    throw new Error("この記事を削除する権限がありません。");
+  }
+
+  await deleteAttachmentsForResource("BLOG_POST", postId);
+  await deleteVisibilityPolicy("BLOG_POST", postId);
+  await prisma.blogPost.delete({ where: { id: postId } });
+
+  if (!isAuthor) {
+    await recordAudit({
+      actorId: user.id,
+      action: "BLOG_POST_DELETE",
+      targetType: "BlogPost",
+      targetId: postId,
+      before: { title: post.title, authorId: post.authorId },
+    });
+  }
+
+  redirect("/blog");
 }

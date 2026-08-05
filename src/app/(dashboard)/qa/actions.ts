@@ -71,6 +71,46 @@ export async function createAnswer(formData: FormData) {
   revalidatePath(`/qa/${parsed.questionId}`);
 }
 
+const deleteAnswerSchema = z.object({
+  answerId: z.string().min(1),
+  questionId: z.string().min(1),
+});
+
+export async function deleteAnswer(formData: FormData) {
+  const user = await verifySession();
+
+  const parsed = deleteAnswerSchema.parse({
+    answerId: formData.get("answerId"),
+    questionId: formData.get("questionId"),
+  });
+
+  const answer = await prisma.qaAnswer.findUniqueOrThrow({ where: { id: parsed.answerId } });
+  if (answer.authorId !== user.id) {
+    throw new Error("自分の回答のみ削除できます。");
+  }
+
+  await prisma.qaAnswer.delete({ where: { id: parsed.answerId } });
+  revalidatePath(`/qa/${parsed.questionId}`);
+}
+
+const deleteQuestionSchema = z.object({ questionId: z.string().min(1) });
+
+export async function deleteQuestion(formData: FormData) {
+  const user = await verifySession();
+
+  const { questionId } = deleteQuestionSchema.parse({
+    questionId: formData.get("questionId"),
+  });
+
+  const question = await prisma.qaQuestion.findUniqueOrThrow({ where: { id: questionId } });
+  if (question.authorId !== user.id) {
+    throw new Error("自分の質問のみ削除できます。");
+  }
+
+  await prisma.qaQuestion.delete({ where: { id: questionId } });
+  redirect("/qa");
+}
+
 const markBestSchema = z.object({
   answerId: z.string().min(1),
   questionId: z.string().min(1),

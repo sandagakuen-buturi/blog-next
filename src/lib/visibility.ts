@@ -77,3 +77,8 @@ export async function setVisibilityPolicy(
     create: { resourceType, resourceId, ...data },
   });
 }
+
+/** リソース削除時に呼ぶ。ポリシーが存在しなくてもエラーにしない。 */
+export async function deleteVisibilityPolicy(resourceType: string, resourceId: string) {
+  await prisma.visibilityPolicy.deleteMany({ where: { resourceType, resourceId } });
+}
