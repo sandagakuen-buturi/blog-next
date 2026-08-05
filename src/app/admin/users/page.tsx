@@ -2,11 +2,14 @@ import { requirePermission } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/permissions";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { RoleSelect } from "./role-select";
 import { DepartmentSelect } from "./department-select";
+import { UnbanButton } from "./unban-button";
 
 export default async function AdminUsersPage() {
   const actor = await requirePermission(PERMISSIONS.CAN_MANAGE_ROLES);
+  const canUnban = (actor.role.permissions & PERMISSIONS.CAN_BAN_BOARD_USER) !== 0n;
 
   const [users, roles] = await Promise.all([
     prisma.user.findMany({ include: { role: true }, orderBy: { createdAt: "asc" } }),
@@ -29,6 +32,7 @@ export default async function AdminUsersPage() {
             <TableHead>メール</TableHead>
             <TableHead>課</TableHead>
             <TableHead>ロール</TableHead>
+            {canUnban && <TableHead>掲示板</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -47,6 +51,18 @@ export default async function AdminUsersPage() {
                   disabled={user.id === actor.id}
                 />
               </TableCell>
+              {canUnban && (
+                <TableCell>
+                  {user.boardBannedAt ? (
+                    <div className="flex items-center gap-2">
+                      <Badge variant="destructive">BAN中</Badge>
+                      <UnbanButton userId={user.id} />
+                    </div>
+                  ) : (
+                    <Badge variant="outline">通常</Badge>
+                  )}
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>
