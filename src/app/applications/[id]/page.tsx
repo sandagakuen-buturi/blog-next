@@ -6,6 +6,8 @@ import { fieldDefSchema } from "@/lib/application-fields";
 import { PERMISSIONS } from "@/lib/permissions";
 import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
+import { AttachmentList } from "@/components/attachment-list";
+import { FileUploadWidget } from "@/components/file-upload-widget";
 import { DecisionForm } from "./decision-form";
 import { ResubmitForm } from "./resubmit-form";
 
@@ -76,6 +78,12 @@ export default async function ApplicationDetailPage({
           </div>
         ))}
       </dl>
+
+      <div className="flex flex-col gap-2">
+        <h2 className="text-lg font-semibold">添付ファイル</h2>
+        <AttachmentList resourceType="APPLICATION" resourceId={application.id} />
+        {isApplicant && <FileUploadWidget resourceType="APPLICATION" resourceId={application.id} />}
+      </div>
 
       {application.history.length > 0 && (
         <div className="flex flex-col gap-2">

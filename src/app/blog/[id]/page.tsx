@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { canView } from "@/lib/visibility";
 import { PERMISSIONS } from "@/lib/permissions";
 import { SafeMarkdown } from "@/components/safe-markdown";
+import { AttachmentList } from "@/components/attachment-list";
+import { FileUploadWidget } from "@/components/file-upload-widget";
 import { CommentSection } from "./comment-section";
 
 export default async function BlogPostPage({ params }: { params: Promise<{ id: string }> }) {
@@ -39,6 +41,13 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
       </div>
 
       <SafeMarkdown>{post.bodyMarkdown}</SafeMarkdown>
+
+      <AttachmentList resourceType="BLOG_POST" resourceId={post.id} />
+
+      {(post.authorId === user.id ||
+        (user.role.permissions & PERMISSIONS.CAN_MODERATE_BLOG) !== 0n) && (
+        <FileUploadWidget resourceType="BLOG_POST" resourceId={post.id} />
+      )}
 
       <CommentSection
         postId={post.id}
