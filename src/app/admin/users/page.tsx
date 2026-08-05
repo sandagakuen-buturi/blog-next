@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/permissions";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { RoleSelect } from "./role-select";
+import { DepartmentSelect } from "./department-select";
 
 export default async function AdminUsersPage() {
   const actor = await requirePermission(PERMISSIONS.CAN_MANAGE_ROLES);
@@ -35,7 +36,9 @@ export default async function AdminUsersPage() {
             <TableRow key={user.id}>
               <TableCell>{user.name}</TableCell>
               <TableCell>{user.email}</TableCell>
-              <TableCell>{user.department ?? "-"}</TableCell>
+              <TableCell>
+                <DepartmentSelect userId={user.id} currentDepartment={user.department} />
+              </TableCell>
               <TableCell>
                 <RoleSelect
                   userId={user.id}
