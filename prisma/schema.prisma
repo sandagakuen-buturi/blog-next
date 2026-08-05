@@ -24,9 +24,10 @@ model User {
   updatedAt     DateTime  @updatedAt
 
   // アプリ固有フィールド
-  roleId     String
-  role       Role        @relation(fields: [roleId], references: [id])
-  department Department?
+  roleId        String
+  role          Role        @relation(fields: [roleId], references: [id])
+  department    Department?
+  boardBannedAt DateTime?
 
   sessions Session[]
   accounts Account[]
