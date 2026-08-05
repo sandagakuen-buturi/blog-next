@@ -42,6 +42,7 @@ model User {
   decisions        ApplicationDecision[]
   emailAudits      EmailAudit[]
   auditLogs        AuditLog[]
+  notifications    Notification[]
 }
 
 model Session {
@@ -100,7 +101,9 @@ model Role {
   isCustom    Boolean  @default(false)
   createdAt   DateTime @default(now())
 
-  users User[]
+  users             User[]
+  visibilityPolicies VisibilityPolicy[]
+  approvalSteps      ApprovalStep[]
 }
 
 // ---------------------------------------------------------------------------
@@ -111,7 +114,7 @@ enum VisibilityScope {
   PUBLIC_STUDENT
   DEPARTMENT_ONLY
   MEMBERS_ONLY
-  ROLE_LEVEL_GTE
+  SPECIFIC_ROLE
   SPECIFIC_USERS
 }
 
@@ -120,7 +123,8 @@ model VisibilityPolicy {
   resourceType     String
   resourceId       String
   scope            VisibilityScope
-  minRoleLevel     Int?
+  targetRoleId     String?
+  targetRole       Role?           @relation(fields: [targetRoleId], references: [id])
   targetDepartment Department?
   targetUserIds    String[]
   createdAt        DateTime        @default(now())
@@ -133,7 +137,7 @@ model VisibilityPolicy {
 // ---------------------------------------------------------------------------
 
 enum ApproverType {
-  ROLE_LEVEL_GTE
+  SPECIFIC_ROLE
   SPECIFIC_USERS
 }
 
@@ -153,7 +157,8 @@ model ApprovalStep {
   template        ApplicationTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   order           Int
   approverType    ApproverType
-  minRoleLevel    Int?
+  approverRoleId  String?
+  approverRole    Role?        @relation(fields: [approverRoleId], references: [id])
   approverUserIds String[]
 
   @@unique([templateId, order])
@@ -324,4 +329,15 @@ model AuditLog {
   before     Json?
   after      Json?
   createdAt  DateTime @default(now())
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  message   String
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
 }
