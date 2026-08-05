@@ -1,14 +1,10 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { ROLE_LEVELS } from "@/lib/permissions";
-import type { Department, VisibilityScope } from "@/generated/prisma/client";
+import type { Department } from "@/generated/prisma/client";
+import { evaluatePolicy, type ViewerUser, type PolicyLike } from "@/lib/visibility-policy";
 
-export type ViewerUser = {
-  id: string;
-  roleId: string;
-  department: Department | null;
-  role: { level: number };
-};
+export type { ViewerUser, PolicyLike };
+export { evaluatePolicy };
 
 export type VisibilityInput =
   | { scope: "PUBLIC_STUDENT" }
@@ -31,31 +27,6 @@ export async function canView(
   });
   if (!policy) return false;
   return evaluatePolicy(user, policy);
-}
-
-export type PolicyLike = {
-  scope: VisibilityScope;
-  targetRoleId: string | null;
-  targetDepartment: Department | null;
-  targetUserIds: string[];
-};
-
-/** 一覧表示等、既に取得済みのポリシーを再クエリなしで評価したい場合に使う。 */
-export function evaluatePolicy(user: ViewerUser, policy: PolicyLike): boolean {
-  switch (policy.scope) {
-    case "PUBLIC_STUDENT":
-      return user.role.level >= ROLE_LEVELS.STUDENT;
-    case "DEPARTMENT_ONLY":
-      return policy.targetDepartment !== null && user.department === policy.targetDepartment;
-    case "MEMBERS_ONLY":
-      return user.role.level > ROLE_LEVELS.STUDENT;
-    case "SPECIFIC_ROLE":
-      return policy.targetRoleId !== null && user.roleId === policy.targetRoleId;
-    case "SPECIFIC_USERS":
-      return policy.targetUserIds.includes(user.id);
-    default:
-      return false;
-  }
 }
 
 /** リソース作成/更新時に呼ぶ。既存ポリシーがあれば置き換える(1リソース1ポリシー)。 */

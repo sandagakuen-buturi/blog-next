@@ -9,6 +9,7 @@ import { verifySession } from "@/lib/dal";
 import { resolveApprovers, resolveSystemAdmins } from "@/lib/approval";
 import { notifyApplicationEvent } from "@/lib/notify";
 import { buildDataSchema, fieldDefSchema } from "@/lib/application-fields";
+import { computeDecisionOutcome } from "@/lib/application-decision";
 import { enforceRateLimit } from "@/lib/ratelimit";
 import { deleteAttachmentsForResource } from "@/lib/attachments";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -131,10 +132,11 @@ export async function decideApplication(formData: FormData) {
     throw new Error("この段階の承認権限がありません。");
   }
 
-  const isLastStep = application.currentStep === application.template.steps.length - 1;
-  const nextStatus =
-    parsed.decision === "APPROVE" ? (isLastStep ? "APPROVED" : "PENDING") : parsed.decision === "REJECT" ? "REJECTED" : "RETURNED";
-  const nextStep = parsed.decision === "APPROVE" && !isLastStep ? application.currentStep + 1 : application.currentStep;
+  const { status: nextStatus, nextStep } = computeDecisionOutcome(
+    application.currentStep,
+    application.template.steps.length,
+    parsed.decision,
+  );
 
   // 早い者勝ち: 期待する現在状態のままの行だけを更新できた場合のみ処理を進める。
   const claimed = await prisma.application.updateMany({
