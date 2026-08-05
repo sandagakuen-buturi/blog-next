@@ -48,3 +48,36 @@ export async function createApplicationTemplate(formData: FormData) {
 
   revalidatePath("/applications/templates");
 }
+
+const deleteTemplateSchema = z.object({ templateId: z.string().min(1) });
+
+export async function deleteApplicationTemplate(formData: FormData) {
+  const actor = await requirePermission(PERMISSIONS.CAN_MANAGE_APPLICATION_TEMPLATES);
+
+  const { templateId } = deleteTemplateSchema.parse({
+    templateId: formData.get("templateId"),
+  });
+
+  const template = await prisma.applicationTemplate.findUniqueOrThrow({
+    where: { id: templateId },
+  });
+
+  const applicationCount = await prisma.application.count({ where: { templateId } });
+  if (applicationCount > 0) {
+    throw new Error(
+      `このテンプレートは${applicationCount}件の申請で使用されているため削除できません。`,
+    );
+  }
+
+  await prisma.applicationTemplate.delete({ where: { id: templateId } });
+
+  await recordAudit({
+    actorId: actor.id,
+    action: "APPLICATION_TEMPLATE_DELETE",
+    targetType: "ApplicationTemplate",
+    targetId: templateId,
+    before: { name: template.name },
+  });
+
+  revalidatePath("/applications/templates");
+}

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/permissions";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TemplateForm } from "./template-form";
+import { DeleteTemplateButton } from "./delete-template-button";
 
 export default async function ApplicationTemplatesPage() {
   await requirePermission(PERMISSIONS.CAN_MANAGE_APPLICATION_TEMPLATES);
@@ -38,13 +39,14 @@ export default async function ApplicationTemplatesPage() {
             <TableRow key={template.id}>
               <TableCell>{template.name}</TableCell>
               <TableCell>{template.steps.length}</TableCell>
-              <TableCell>
+              <TableCell className="flex items-center gap-3">
                 <Link
                   href={`/applications/new/${template.id}`}
                   className="text-sm hover:underline"
                 >
                   この内容で申請する
                 </Link>
+                <DeleteTemplateButton templateId={template.id} />
               </TableCell>
             </TableRow>
           ))}
