@@ -1,0 +1,327 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Better-Auth core models
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  name          String
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // アプリ固有フィールド
+  roleId     String
+  role       Role        @relation(fields: [roleId], references: [id])
+  department Department?
+
+  sessions Session[]
+  accounts Account[]
+
+  blogPosts        BlogPost[]
+  comments         Comment[]
+  qaQuestions      QaQuestion[]
+  qaAnswers        QaAnswer[]
+  boardsCreated    Board[]
+  threads          Thread[]
+  posts            Post[]
+  applications     Application[]        @relation("Applicant")
+  decisions        ApplicationDecision[]
+  emailAudits      EmailAudit[]
+  auditLogs        AuditLog[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  idToken               String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// ロール・権限
+// ---------------------------------------------------------------------------
+
+enum Department {
+  IT
+  ROBOT
+  HYBRID
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  level       Int
+  permissions BigInt
+  isCustom    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  users User[]
+}
+
+// ---------------------------------------------------------------------------
+// Visibilityエンジン(公開範囲・承認者指定の共通基盤)
+// ---------------------------------------------------------------------------
+
+enum VisibilityScope {
+  PUBLIC_STUDENT
+  DEPARTMENT_ONLY
+  MEMBERS_ONLY
+  ROLE_LEVEL_GTE
+  SPECIFIC_USERS
+}
+
+model VisibilityPolicy {
+  id               String          @id @default(cuid())
+  resourceType     String
+  resourceId       String
+  scope            VisibilityScope
+  minRoleLevel     Int?
+  targetDepartment Department?
+  targetUserIds    String[]
+  createdAt        DateTime        @default(now())
+
+  @@unique([resourceType, resourceId])
+}
+
+// ---------------------------------------------------------------------------
+// 申請ワークフローエンジン
+// ---------------------------------------------------------------------------
+
+enum ApproverType {
+  ROLE_LEVEL_GTE
+  SPECIFIC_USERS
+}
+
+model ApplicationTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  fields    Json
+  createdAt DateTime @default(now())
+
+  steps        ApprovalStep[]
+  applications Application[]
+}
+
+model ApprovalStep {
+  id              String       @id @default(cuid())
+  templateId      String
+  template        ApplicationTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  order           Int
+  approverType    ApproverType
+  minRoleLevel    Int?
+  approverUserIds String[]
+
+  @@unique([templateId, order])
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  RETURNED
+}
+
+model Application {
+  id           String              @id @default(cuid())
+  templateId   String
+  template     ApplicationTemplate @relation(fields: [templateId], references: [id])
+  applicantId  String
+  applicant    User                @relation("Applicant", fields: [applicantId], references: [id])
+  data         Json
+  status       ApplicationStatus   @default(PENDING)
+  currentStep  Int                 @default(0)
+  needsAttention Boolean           @default(false)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  history ApplicationDecision[]
+}
+
+enum DecisionType {
+  APPROVE
+  REJECT
+  RETURN
+}
+
+model ApplicationDecision {
+  id            String       @id @default(cuid())
+  applicationId String
+  application   Application  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  stepOrder     Int
+  deciderId     String
+  decider       User         @relation(fields: [deciderId], references: [id])
+  decision      DecisionType
+  comment       String?
+  decidedAt     DateTime     @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// ブログ
+// ---------------------------------------------------------------------------
+
+model BlogPost {
+  id           String     @id @default(cuid())
+  authorId     String
+  author       User       @relation(fields: [authorId], references: [id])
+  department   Department
+  title        String
+  bodyMarkdown String
+  publishedAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  comments Comment[]
+}
+
+model Comment {
+  id        String    @id @default(cuid())
+  postId    String
+  post      BlogPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User      @relation(fields: [authorId], references: [id])
+  parentId  String?
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies   Comment[] @relation("CommentReplies")
+  body      String
+  createdAt DateTime  @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// QA
+// ---------------------------------------------------------------------------
+
+model QaQuestion {
+  id        String   @id @default(cuid())
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  title     String
+  body      String
+  tags      String[]
+  createdAt DateTime @default(now())
+
+  answers QaAnswer[]
+}
+
+model QaAnswer {
+  id           String     @id @default(cuid())
+  questionId   String
+  question     QaQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  authorId     String
+  author       User       @relation(fields: [authorId], references: [id])
+  body         String
+  isBestAnswer Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// 掲示板
+// ---------------------------------------------------------------------------
+
+model Board {
+  id        String   @id @default(cuid())
+  name      String
+  creatorId String
+  creator   User     @relation(fields: [creatorId], references: [id])
+  createdAt DateTime @default(now())
+
+  threads Thread[]
+}
+
+model Thread {
+  id        String   @id @default(cuid())
+  boardId   String
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  title     String
+  createdAt DateTime @default(now())
+
+  posts Post[]
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  threadId  String
+  thread    Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// 通知・監査
+// ---------------------------------------------------------------------------
+
+model DiscordWebhook {
+  id           String   @id @default(cuid())
+  scope        String   @unique // "IT" | "ROBOT" | "HYBRID" | "SYSTEM"
+  urlEncrypted String
+  updatedAt    DateTime @updatedAt
+}
+
+model EmailAudit {
+  id         String   @id @default(cuid())
+  senderId   String
+  sender     User     @relation(fields: [senderId], references: [id])
+  recipients String[]
+  subject    String
+  sentAt     DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actor      User     @relation(fields: [actorId], references: [id])
+  action     String
+  targetType String?
+  targetId   String?
+  before     Json?
+  after      Json?
+  createdAt  DateTime @default(now())
+}
