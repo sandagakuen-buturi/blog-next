@@ -13,7 +13,7 @@
 | レート制限 | Upstash Redis (`@upstash/ratelimit`) |
 | メール | Resend |
 | チャット通知 | Discord Webhook(課ごと + システム通知用) |
-| ファイルストレージ | 自前RustFS(S3互換, Cloudflare Tunnel経由で公開) |
+| ファイルストレージ | S3互換オブジェクトストレージ(Cloudflare R2。CORSでアプリのオリジンからのGET/PUTを許可) |
 | Markdown | `react-markdown`(`rehype-raw`不使用) |
 | テスト | Vitest(権限/Visibility/承認フロー中心) + Playwright(主要導線) |
 
@@ -52,8 +52,8 @@ Role {
 VisibilityPolicy {
   resourceType: "BLOG_POST" | "BOARD" | "QA_QUESTION" | ...
   resourceId: string
-  scope: "PUBLIC_STUDENT" | "DEPARTMENT_ONLY" | "MEMBERS_ONLY" | "ROLE_LEVEL_GTE" | "SPECIFIC_USERS"
-  minRoleLevel?: number       // scope=ROLE_LEVEL_GTE
+  scope: "PUBLIC_STUDENT" | "DEPARTMENT_ONLY" | "MEMBERS_ONLY" | "SPECIFIC_ROLE" | "SPECIFIC_USERS"
+  targetRoleId?: string       // scope=SPECIFIC_ROLE(Roleへの外部キー、完全一致で判定)
   targetDepartment?: Department // scope=DEPARTMENT_ONLY
   targetUserIds?: string[]    // scope=SPECIFIC_USERS
 }
@@ -67,12 +67,12 @@ VisibilityPolicy {
 
 ```
 ApplicationTemplate { name, fields(Json: フォーム項目定義), steps: ApprovalStep[] }
-ApprovalStep        { order, approverType: "ROLE_LEVEL_GTE" | "SPECIFIC_USERS", minRoleLevel?, approverUserIds? }
+ApprovalStep        { order, approverType: "SPECIFIC_ROLE" | "SPECIFIC_USERS", approverRoleId?, approverUserIds? }
 Application          { templateId, applicantId, data(Json), status, currentStep, history: ApplicationDecision[] }
 ApplicationDecision   { stepOrder, deciderId, decision: "APPROVE" | "REJECT" | "RETURN", comment? }
 ```
 
-- 承認者はロール(階層レベル以上)指定・個人指定のどちらでも設定可能。
+- 承認者は特定ロール(完全一致)指定・個人指定のどちらでも設定可能(例:「第1段階: 課長」)。
 - ステップの承認者候補が複数人いる場合は早い者勝ち(最初に承認した人の決定が確定)。候補が0人の場合は申請を保留にし、システム管理者に通知する。
 - 却下時、承認者は「却下して申請終了」か「差し戻して申請者に修正依頼」かをその場で選べる。差し戻しの場合、申請者は同じ申請を修正して再提出でき、フローは最初からやり直す。
 - 通知はサイト内通知・Discord Webhook・Resendメールの3系統全てで自動送信する。
@@ -108,8 +108,8 @@ ApplicationDecision   { stepOrder, deciderId, decision: "APPROVE" | "REJECT" | "
 - **レート制限**: Upstash Redisでログイン・投稿・コメント・申請送信・一括メール等のエンドポイントにレート制限をかける。
 - **Markdown/XSS対策**: `react-markdown`を`rehype-raw`なしで使用し、生HTML埋め込みを一切許可しない。共通ラッパー`<SafeMarkdown>`に集約し、`urlTransform`で`javascript:`等の危険URIスキームを除去する。
 - **監査ログ**: ロール変更・申請承認/却下/差し戻し・Webhook URL変更・一括メール送信・掲示板BAN操作を`AuditLog`に記録(誰が・いつ・何を・変更前後の値)。閲覧はシステム管理者のみ。
-- **Server Actions**: 全アクションはクライアント入力のIDを信頼せず、冒頭で`verifySession()`と権限/Visibility判定を必ず行う。ファイルアップロードは1MBのボディサイズ制限があるため、Route Handler(`route.ts`)経由でRustFS(S3互換)へ送る。
-- **ファイルストレージ**: `@aws-sdk/client-s3`でRustFSのS3互換エンドポイント(Cloudflare Tunnel経由で公開)に接続。アクセスキー等も暗号化管理。
+- **Server Actions**: 全アクションはクライアント入力のIDを信頼せず、冒頭で`verifySession()`と権限/Visibility判定を必ず行う。ファイルアップロードは1MBのボディサイズ制限があるため、Route Handler(`route.ts`)経由で署名付きURLを発行し、クライアントから直接S3互換ストレージへPUTする。
+- **ファイルストレージ**: `@aws-sdk/client-s3`でCloudflare R2のS3互換エンドポイントに接続。`Attachment`モデル(resourceType/resourceId方式)でブログ画像・申請添付を管理し、閲覧は対象リソースのcanView()判定を通過した場合のみ署名付きGET URLを発行する。
 
 ## Next.js 16 特有の注意点
 
@@ -123,6 +123,7 @@ ApplicationDecision   { stepOrder, deciderId, decision: "APPROVE" | "REJECT" | "
 ```
 User --(roleId)--> Role
 User --(department)--> Department(enum)
+User.boardBannedAt(掲示板BAN)
 
 BlogPost --(department)--> Department
 BlogPost --(authorId)--> User
@@ -140,6 +141,8 @@ QaQuestion --< QaAnswer
 DiscordWebhook(scope: IT/ROBOT/HYBRID/SYSTEM)
 EmailAudit
 AuditLog
+Notification --(userId)--> User
+Attachment --(resourceType, resourceId)--> BlogPost | Application(S3互換ストレージのobject keyを保持)
 ```
 
 ## 実装フェーズ
@@ -150,7 +153,7 @@ AuditLog
 4. 申請ワークフローエンジン
 5. QA・掲示板
 6. 一括メール・監査ログ画面
-7. ファイルアップロード(RustFS)
+7. ファイルアップロード(S3互換ストレージ)
 8. セキュリティ仕上げ
 9. テスト整備(Vitest中心 + Playwright主要導線)
 
