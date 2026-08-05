@@ -5,6 +5,7 @@ import type { Department, VisibilityScope } from "@/generated/prisma/client";
 
 export type ViewerUser = {
   id: string;
+  roleId: string;
   department: Department | null;
   role: { level: number };
 };
@@ -13,7 +14,7 @@ export type VisibilityInput =
   | { scope: "PUBLIC_STUDENT" }
   | { scope: "DEPARTMENT_ONLY"; targetDepartment: Department }
   | { scope: "MEMBERS_ONLY" }
-  | { scope: "ROLE_LEVEL_GTE"; minRoleLevel: number }
+  | { scope: "SPECIFIC_ROLE"; targetRoleId: string }
   | { scope: "SPECIFIC_USERS"; targetUserIds: string[] };
 
 /**
@@ -34,21 +35,13 @@ export async function canView(
 
 export type PolicyLike = {
   scope: VisibilityScope;
-  minRoleLevel: number | null;
+  targetRoleId: string | null;
   targetDepartment: Department | null;
   targetUserIds: string[];
 };
 
 /** 一覧表示等、既に取得済みのポリシーを再クエリなしで評価したい場合に使う。 */
-export function evaluatePolicy(
-  user: ViewerUser,
-  policy: {
-    scope: VisibilityScope;
-    minRoleLevel: number | null;
-    targetDepartment: Department | null;
-    targetUserIds: string[];
-  },
-): boolean {
+export function evaluatePolicy(user: ViewerUser, policy: PolicyLike): boolean {
   switch (policy.scope) {
     case "PUBLIC_STUDENT":
       return user.role.level >= ROLE_LEVELS.STUDENT;
@@ -56,8 +49,8 @@ export function evaluatePolicy(
       return policy.targetDepartment !== null && user.department === policy.targetDepartment;
     case "MEMBERS_ONLY":
       return user.role.level > ROLE_LEVELS.STUDENT;
-    case "ROLE_LEVEL_GTE":
-      return policy.minRoleLevel !== null && user.role.level >= policy.minRoleLevel;
+    case "SPECIFIC_ROLE":
+      return policy.targetRoleId !== null && user.roleId === policy.targetRoleId;
     case "SPECIFIC_USERS":
       return policy.targetUserIds.includes(user.id);
     default:
@@ -73,7 +66,7 @@ export async function setVisibilityPolicy(
 ) {
   const data = {
     scope: input.scope,
-    minRoleLevel: input.scope === "ROLE_LEVEL_GTE" ? input.minRoleLevel : null,
+    targetRoleId: input.scope === "SPECIFIC_ROLE" ? input.targetRoleId : null,
     targetDepartment: input.scope === "DEPARTMENT_ONLY" ? input.targetDepartment : null,
     targetUserIds: input.scope === "SPECIFIC_USERS" ? input.targetUserIds : [],
   };

@@ -18,11 +18,19 @@ const VISIBILITY_LABELS: Record<string, string> = {
   PUBLIC_STUDENT: "全体公開(学生ロール以上全員)",
   DEPARTMENT_ONLY: "所属課のみ",
   MEMBERS_ONLY: "物理部員のみ(学生を除く)",
-  ROLE_LEVEL_GTE: "特定ロール以上",
+  SPECIFIC_ROLE: "特定ロール",
   SPECIFIC_USERS: "個別ユーザー指名",
 };
 
-export function NewPostForm({ department }: { department: "IT" | "ROBOT" | "HYBRID" | null }) {
+type RoleOption = { id: string; name: string };
+
+export function NewPostForm({
+  department,
+  roles,
+}: {
+  department: "IT" | "ROBOT" | "HYBRID" | null;
+  roles: RoleOption[];
+}) {
   const [visibilityScope, setVisibilityScope] = useState("PUBLIC_STUDENT");
   const [state, formAction, isPending] = useActionState(createBlogPost, {});
 
@@ -83,10 +91,21 @@ export function NewPostForm({ department }: { department: "IT" | "ROBOT" | "HYBR
         </Select>
       </div>
 
-      {visibilityScope === "ROLE_LEVEL_GTE" && (
+      {visibilityScope === "SPECIFIC_ROLE" && (
         <div className="flex flex-col gap-2">
-          <Label htmlFor="minRoleLevel">最低ロールレベル(例: 課長=20)</Label>
-          <Input id="minRoleLevel" name="minRoleLevel" type="number" required />
+          <Label htmlFor="targetRoleId">閲覧を許可するロール</Label>
+          <Select name="targetRoleId" required>
+            <SelectTrigger id="targetRoleId">
+              <SelectValue placeholder="選択してください" />
+            </SelectTrigger>
+            <SelectContent>
+              {roles.map((role) => (
+                <SelectItem key={role.id} value={role.id}>
+                  {role.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       )}
 

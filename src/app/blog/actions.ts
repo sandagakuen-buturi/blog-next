@@ -13,7 +13,7 @@ const visibilitySchema: z.ZodType<VisibilityInput> = z.discriminatedUnion("scope
   z.object({ scope: z.literal("PUBLIC_STUDENT") }),
   z.object({ scope: z.literal("MEMBERS_ONLY") }),
   z.object({ scope: z.literal("DEPARTMENT_ONLY"), targetDepartment: z.enum(["IT", "ROBOT", "HYBRID"]) }),
-  z.object({ scope: z.literal("ROLE_LEVEL_GTE"), minRoleLevel: z.coerce.number().int() }),
+  z.object({ scope: z.literal("SPECIFIC_ROLE"), targetRoleId: z.string().min(1) }),
   z.object({ scope: z.literal("SPECIFIC_USERS"), targetUserIds: z.array(z.string()) }),
 ]);
 
@@ -51,8 +51,8 @@ export async function createBlogPost(
     const visibility: VisibilityInput =
       rawVisibility === "DEPARTMENT_ONLY"
         ? { scope: "DEPARTMENT_ONLY", targetDepartment: author.department }
-        : rawVisibility === "ROLE_LEVEL_GTE"
-          ? { scope: "ROLE_LEVEL_GTE", minRoleLevel: Number(formData.get("minRoleLevel")) }
+        : rawVisibility === "SPECIFIC_ROLE"
+          ? { scope: "SPECIFIC_ROLE", targetRoleId: String(formData.get("targetRoleId") ?? "") }
           : rawVisibility === "SPECIFIC_USERS"
             ? {
                 scope: "SPECIFIC_USERS",
