@@ -10,6 +10,7 @@ export function LoginButton() {
 
   return (
     <Button
+      className="h-10 w-full px-4 text-sm"
       onClick={() =>
         authClient.signIn.social({
           provider: "google",

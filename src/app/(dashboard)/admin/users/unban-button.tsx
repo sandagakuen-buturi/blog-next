@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { unbanBoardUser } from "@/app/board/actions";
+import { unbanBoardUser } from "@/app/(dashboard)/board/actions";
 
 export function UnbanButton({ userId }: { userId: string }) {
   const [isPending, startTransition] = useTransition();
