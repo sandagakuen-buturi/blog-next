@@ -4,14 +4,23 @@ import { prisma } from "@/lib/prisma";
 import { evaluatePolicy } from "@/lib/visibility";
 import { Button } from "@/components/ui/button";
 import { PERMISSIONS } from "@/lib/permissions";
+import { PaginationControls, resolvePage } from "@/components/pagination-controls";
 
-export default async function BlogListPage() {
+const PAGE_SIZE = 50;
+
+export default async function BlogListPage(props: PageProps<"/blog">) {
   const user = await verifySession();
 
+  const where = { publishedAt: { lte: new Date() } };
+  const total = await prisma.blogPost.count({ where });
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = resolvePage((await props.searchParams).page, totalPages);
+
   const posts = await prisma.blogPost.findMany({
-    where: { publishedAt: { lte: new Date() } },
+    where,
     orderBy: { publishedAt: "desc" },
-    take: 50,
+    skip: (page - 1) * PAGE_SIZE,
+    take: PAGE_SIZE,
     include: { author: true },
   });
 
@@ -59,6 +68,8 @@ export default async function BlogListPage() {
           </p>
         )}
       </ul>
+
+      <PaginationControls currentPage={page} totalPages={totalPages} />
     </main>
   );
 }

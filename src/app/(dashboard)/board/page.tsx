@@ -5,14 +5,23 @@ import { evaluatePolicy } from "@/lib/visibility";
 import { PERMISSIONS } from "@/lib/permissions";
 import { CreateBoardForm } from "./create-board-form";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { PaginationControls, resolvePage } from "@/components/pagination-controls";
 import { deleteBoard } from "./actions";
 
-export default async function BoardListPage() {
+const PAGE_SIZE = 50;
+
+export default async function BoardListPage(props: PageProps<"/board">) {
   const user = await verifySession();
+
+  const total = await prisma.board.count();
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = resolvePage((await props.searchParams).page, totalPages);
 
   const boards = await prisma.board.findMany({
     include: { _count: { select: { threads: true } } },
     orderBy: { createdAt: "asc" },
+    skip: (page - 1) * PAGE_SIZE,
+    take: PAGE_SIZE,
   });
 
   const policies = await prisma.visibilityPolicy.findMany({
@@ -67,6 +76,8 @@ export default async function BoardListPage() {
           </p>
         )}
       </ul>
+
+      <PaginationControls currentPage={page} totalPages={totalPages} />
 
       {canCreateBoard && (
         <div className="flex flex-col gap-4 rounded-lg border bg-card p-4 shadow-xs">

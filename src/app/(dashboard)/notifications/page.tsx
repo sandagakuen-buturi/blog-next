@@ -3,14 +3,23 @@ import { verifySession } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { MarkReadButton } from "./mark-read-button";
+import { PaginationControls, resolvePage } from "@/components/pagination-controls";
 
-export default async function NotificationsPage() {
+const PAGE_SIZE = 100;
+
+export default async function NotificationsPage(props: PageProps<"/notifications">) {
   const user = await verifySession();
 
+  const where = { userId: user.id };
+  const total = await prisma.notification.count({ where });
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = resolvePage((await props.searchParams).page, totalPages);
+
   const notifications = await prisma.notification.findMany({
-    where: { userId: user.id },
+    where,
     orderBy: { createdAt: "desc" },
-    take: 100,
+    skip: (page - 1) * PAGE_SIZE,
+    take: PAGE_SIZE,
   });
 
   return (
@@ -40,6 +49,8 @@ export default async function NotificationsPage() {
           <p className="text-muted-foreground text-sm">通知はありません。</p>
         )}
       </ul>
+
+      <PaginationControls currentPage={page} totalPages={totalPages} />
     </main>
   );
 }

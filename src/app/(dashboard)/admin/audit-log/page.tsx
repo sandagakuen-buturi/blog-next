@@ -2,14 +2,22 @@ import { requirePermission } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/permissions";
 import { AuditLogTable } from "./audit-log-table";
+import { PaginationControls, resolvePage } from "@/components/pagination-controls";
 
-export default async function AuditLogPage() {
+const PAGE_SIZE = 200;
+
+export default async function AuditLogPage(props: PageProps<"/admin/audit-log">) {
   await requirePermission(PERMISSIONS.CAN_VIEW_AUDIT_LOG);
+
+  const total = await prisma.auditLog.count();
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = resolvePage((await props.searchParams).page, totalPages);
 
   const logs = await prisma.auditLog.findMany({
     include: { actor: true },
     orderBy: { createdAt: "desc" },
-    take: 200,
+    skip: (page - 1) * PAGE_SIZE,
+    take: PAGE_SIZE,
   });
 
   return (
@@ -22,6 +30,8 @@ export default async function AuditLogPage() {
       </div>
 
       <AuditLogTable logs={logs} />
+
+      <PaginationControls currentPage={page} totalPages={totalPages} />
     </main>
   );
 }

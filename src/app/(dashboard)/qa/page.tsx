@@ -4,14 +4,22 @@ import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PERMISSIONS } from "@/lib/permissions";
+import { PaginationControls, resolvePage } from "@/components/pagination-controls";
 
-export default async function QaListPage() {
+const PAGE_SIZE = 50;
+
+export default async function QaListPage(props: PageProps<"/qa">) {
   const user = await verifySession();
+
+  const total = await prisma.qaQuestion.count();
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = resolvePage((await props.searchParams).page, totalPages);
 
   const questions = await prisma.qaQuestion.findMany({
     include: { author: true, answers: true },
     orderBy: { createdAt: "desc" },
-    take: 50,
+    skip: (page - 1) * PAGE_SIZE,
+    take: PAGE_SIZE,
   });
 
   const canAsk = (user.role.permissions & PERMISSIONS.CAN_ASK_QA) !== 0n;
@@ -55,6 +63,8 @@ export default async function QaListPage() {
           </p>
         )}
       </ul>
+
+      <PaginationControls currentPage={page} totalPages={totalPages} />
     </main>
   );
 }
