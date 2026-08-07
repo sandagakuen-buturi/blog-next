@@ -12,6 +12,7 @@ export function DecisionForm({ applicationId }: { applicationId: string }) {
   const commentRef = useRef<HTMLTextAreaElement>(null);
 
   function submit(decision: "APPROVE" | "REJECT" | "RETURN") {
+    if (decision === "REJECT" && !window.confirm("この申請を却下しますか?")) return;
     startTransition(async () => {
       const formData = new FormData();
       formData.set("applicationId", applicationId);

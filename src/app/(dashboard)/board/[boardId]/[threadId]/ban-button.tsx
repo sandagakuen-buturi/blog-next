@@ -14,7 +14,8 @@ export function BanButton({ userId }: { userId: string }) {
       variant="destructive"
       size="sm"
       disabled={isPending}
-      onClick={() =>
+      onClick={() => {
+        if (!window.confirm("このユーザーをBANしますか?")) return;
         startTransition(async () => {
           const formData = new FormData();
           formData.set("userId", userId);
@@ -24,8 +25,8 @@ export function BanButton({ userId }: { userId: string }) {
           } catch (error) {
             toast.error(error instanceof Error ? error.message : "処理に失敗しました。");
           }
-        })
-      }
+        });
+      }}
     >
       BAN
     </Button>
