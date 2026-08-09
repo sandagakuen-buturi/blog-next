@@ -1,20 +1,17 @@
 import Link from "next/link";
 import { requirePermission } from "@/lib/dal";
-import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/permissions";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TemplateForm } from "./template-form";
 import { DeleteTemplateButton } from "./delete-template-button";
+import { getCachedApplicationTemplatesWithSteps, getCachedRoles } from "@/lib/cached-queries";
 
 export default async function ApplicationTemplatesPage() {
   await requirePermission(PERMISSIONS.CAN_MANAGE_APPLICATION_TEMPLATES);
 
   const [templates, roles] = await Promise.all([
-    prisma.applicationTemplate.findMany({
-      include: { steps: true },
-      orderBy: { createdAt: "asc" },
-    }),
-    prisma.role.findMany({ orderBy: { level: "asc" } }),
+    getCachedApplicationTemplatesWithSteps(),
+    getCachedRoles(),
   ]);
 
   return (

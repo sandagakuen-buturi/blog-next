@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveApprovers } from "@/lib/approval";
 import { PERMISSIONS } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
+import { getCachedApplicationTemplates } from "@/lib/cached-queries";
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING: "審査中",
@@ -16,7 +17,7 @@ export default async function ApplicationsPage() {
   const user = await verifySession();
 
   const [templates, myApplications, pendingApplications] = await Promise.all([
-    prisma.applicationTemplate.findMany({ orderBy: { createdAt: "asc" } }),
+    getCachedApplicationTemplates(),
     prisma.application.findMany({
       where: { applicantId: user.id },
       include: { template: true },

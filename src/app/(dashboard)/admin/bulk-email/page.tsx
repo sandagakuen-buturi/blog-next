@@ -3,12 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/permissions";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BulkEmailForm } from "./bulk-email-form";
+import { getCachedRoles } from "@/lib/cached-queries";
 
 export default async function BulkEmailPage() {
   await requirePermission(PERMISSIONS.CAN_SEND_BULK_EMAIL);
 
   const [roles, history] = await Promise.all([
-    prisma.role.findMany({ orderBy: { level: "asc" } }),
+    getCachedRoles(),
     prisma.emailAudit.findMany({
       include: { sender: true },
       orderBy: { sentAt: "desc" },

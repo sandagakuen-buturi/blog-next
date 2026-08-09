@@ -6,6 +6,7 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { CreateBoardForm } from "./create-board-form";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { PaginationControls, resolvePage } from "@/components/pagination-controls";
+import { getCachedBoards } from "@/lib/cached-queries";
 import { deleteBoard } from "./actions";
 
 const PAGE_SIZE = 50;
@@ -13,16 +14,10 @@ const PAGE_SIZE = 50;
 export default async function BoardListPage(props: PageProps<"/board">) {
   const user = await verifySession();
 
-  const total = await prisma.board.count();
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const allBoards = await getCachedBoards();
+  const totalPages = Math.max(1, Math.ceil(allBoards.length / PAGE_SIZE));
   const page = resolvePage((await props.searchParams).page, totalPages);
-
-  const boards = await prisma.board.findMany({
-    include: { _count: { select: { threads: true } } },
-    orderBy: { createdAt: "asc" },
-    skip: (page - 1) * PAGE_SIZE,
-    take: PAGE_SIZE,
-  });
+  const boards = allBoards.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const policies = await prisma.visibilityPolicy.findMany({
     where: { resourceType: "BOARD", resourceId: { in: boards.map((b) => b.id) } },

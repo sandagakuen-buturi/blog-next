@@ -1,11 +1,11 @@
 import { requirePermission } from "@/lib/dal";
-import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/permissions";
 import { NewPostForm } from "./new-post-form";
+import { getCachedRoles } from "@/lib/cached-queries";
 
 export default async function NewBlogPostPage() {
   const author = await requirePermission(PERMISSIONS.CAN_POST_BLOG);
-  const roles = await prisma.role.findMany({ orderBy: { level: "asc" } });
+  const roles = await getCachedRoles();
 
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-6 p-8">

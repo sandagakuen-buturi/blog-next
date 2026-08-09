@@ -1,14 +1,14 @@
 import { requirePermission } from "@/lib/dal";
-import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/permissions";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { CreateRoleForm } from "./create-role-form";
+import { getCachedRoles } from "@/lib/cached-queries";
 
 export default async function AdminRolesPage() {
   await requirePermission(PERMISSIONS.CAN_MANAGE_ROLES);
 
-  const roles = await prisma.role.findMany({ orderBy: { level: "asc" } });
+  const roles = await getCachedRoles();
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-8 p-8">

@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePermission, verifySession } from "@/lib/dal";
@@ -44,6 +44,7 @@ export async function createBoard(
     throw error;
   }
 
+  revalidateTag("boards", { expire: 0 });
   redirect(`/board/${boardId}`);
 }
 
@@ -217,6 +218,7 @@ export async function deleteBoard(formData: FormData) {
 
   await prisma.board.delete({ where: { id: boardId } });
   await deleteVisibilityPolicy("BOARD", boardId);
+  revalidateTag("boards", { expire: 0 });
   redirect("/board");
 }
 

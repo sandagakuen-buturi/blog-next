@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { recordAudit } from "@/lib/audit";
@@ -46,6 +46,7 @@ export async function createApplicationTemplate(formData: FormData) {
     after: { name: template.name },
   });
 
+  revalidateTag("application-templates", { expire: 0 });
   revalidatePath("/applications/templates");
 }
 
@@ -79,5 +80,6 @@ export async function deleteApplicationTemplate(formData: FormData) {
     before: { name: template.name },
   });
 
+  revalidateTag("application-templates", { expire: 0 });
   revalidatePath("/applications/templates");
 }

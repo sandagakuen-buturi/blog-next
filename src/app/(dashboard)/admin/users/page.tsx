@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { RoleSelect } from "./role-select";
 import { DepartmentSelect } from "./department-select";
 import { UnbanButton } from "./unban-button";
+import { getCachedRoles } from "@/lib/cached-queries";
 
 export default async function AdminUsersPage() {
   const actor = await requirePermission(PERMISSIONS.CAN_MANAGE_ROLES);
@@ -13,7 +14,7 @@ export default async function AdminUsersPage() {
 
   const [users, roles] = await Promise.all([
     prisma.user.findMany({ include: { role: true }, orderBy: { createdAt: "asc" } }),
-    prisma.role.findMany({ orderBy: { level: "asc" } }),
+    getCachedRoles(),
   ]);
 
   return (
