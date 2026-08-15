@@ -5,18 +5,19 @@ import { evaluatePolicy } from "@/lib/visibility";
 import { PERMISSIONS } from "@/lib/permissions";
 import { CreateBoardForm } from "./create-board-form";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { PaginationControls, resolvePage } from "@/components/pagination-controls";
+import { PaginationControls, parsePage, clampPage } from "@/components/pagination-controls";
 import { getCachedBoards } from "@/lib/cached-queries";
 import { deleteBoard } from "./actions";
 
 const PAGE_SIZE = 50;
 
 export default async function BoardListPage(props: PageProps<"/board">) {
+  // getCachedBoards()はDBを介さないことが多く、searchParamsのawaitと互いに依存しないため並列化する。
+  const [allBoards, searchParams] = await Promise.all([getCachedBoards(), props.searchParams]);
   const user = await verifySession();
 
-  const allBoards = await getCachedBoards();
   const totalPages = Math.max(1, Math.ceil(allBoards.length / PAGE_SIZE));
-  const page = resolvePage((await props.searchParams).page, totalPages);
+  const page = clampPage(parsePage(searchParams.page), totalPages);
   const boards = allBoards.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const policies = await prisma.visibilityPolicy.findMany({

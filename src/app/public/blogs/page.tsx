@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { evaluatePolicy } from "@/lib/visibility";
 import { createExcerpt } from "@/lib/excerpt";
 import { Badge } from "@/components/ui/badge";
-import { PaginationControls, resolvePage } from "@/components/pagination-controls";
+import { PaginationControls, parsePage, clampPage } from "@/components/pagination-controls";
 
 const PAGE_SIZE = 20;
 
@@ -12,17 +12,20 @@ export default async function PublicBlogsPage(props: PageProps<"/public/blogs">)
   const user = await verifySession();
 
   const where = { publishedAt: { lte: new Date() } };
-  const total = await prisma.blogPost.count({ where });
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const page = resolvePage((await props.searchParams).page, totalPages);
+  const requestedPage = parsePage((await props.searchParams).page);
 
-  const posts = await prisma.blogPost.findMany({
-    where,
-    orderBy: { publishedAt: "desc" },
-    skip: (page - 1) * PAGE_SIZE,
-    take: PAGE_SIZE,
-    include: { author: true },
-  });
+  const [total, posts] = await prisma.$transaction([
+    prisma.blogPost.count({ where }),
+    prisma.blogPost.findMany({
+      where,
+      orderBy: { publishedAt: "desc" },
+      skip: (requestedPage - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      include: { author: true },
+    }),
+  ]);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = clampPage(requestedPage, totalPages);
 
   const policies = await prisma.visibilityPolicy.findMany({
     where: { resourceType: "BLOG_POST", resourceId: { in: posts.map((p) => p.id) } },

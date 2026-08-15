@@ -3,7 +3,7 @@ import { verifySession } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { MarkReadButton } from "./mark-read-button";
-import { PaginationControls, resolvePage } from "@/components/pagination-controls";
+import { PaginationControls, parsePage, clampPage } from "@/components/pagination-controls";
 
 const PAGE_SIZE = 100;
 
@@ -11,16 +11,19 @@ export default async function NotificationsPage(props: PageProps<"/notifications
   const user = await verifySession();
 
   const where = { userId: user.id };
-  const total = await prisma.notification.count({ where });
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const page = resolvePage((await props.searchParams).page, totalPages);
+  const requestedPage = parsePage((await props.searchParams).page);
 
-  const notifications = await prisma.notification.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    skip: (page - 1) * PAGE_SIZE,
-    take: PAGE_SIZE,
-  });
+  const [total, notifications] = await prisma.$transaction([
+    prisma.notification.count({ where }),
+    prisma.notification.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (requestedPage - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+  ]);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = clampPage(requestedPage, totalPages);
 
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-6 p-8">

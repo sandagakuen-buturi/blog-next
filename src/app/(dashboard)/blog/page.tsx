@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { evaluatePolicy } from "@/lib/visibility";
 import { Button } from "@/components/ui/button";
 import { PERMISSIONS } from "@/lib/permissions";
-import { PaginationControls, resolvePage } from "@/components/pagination-controls";
+import { PaginationControls, parsePage, clampPage } from "@/components/pagination-controls";
 
 const PAGE_SIZE = 50;
 
@@ -12,17 +12,23 @@ export default async function BlogListPage(props: PageProps<"/blog">) {
   const user = await verifySession();
 
   const where = { publishedAt: { lte: new Date() } };
-  const total = await prisma.blogPost.count({ where });
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const page = resolvePage((await props.searchParams).page, totalPages);
+  const requestedPage = parsePage((await props.searchParams).page);
 
-  const posts = await prisma.blogPost.findMany({
-    where,
-    orderBy: { publishedAt: "desc" },
-    skip: (page - 1) * PAGE_SIZE,
-    take: PAGE_SIZE,
-    include: { author: true },
-  });
+  // count()とfindMany()を1つのトランザクションにまとめ、DB往復を1回に減らしつつ
+  // 同じスナップショットから件数と一覧を取得する(Promise.allだと接続が分かれ、
+  // 件数計算後に新規投稿が挟まるとページ内容がズレる可能性がある)。
+  const [total, posts] = await prisma.$transaction([
+    prisma.blogPost.count({ where }),
+    prisma.blogPost.findMany({
+      where,
+      orderBy: { publishedAt: "desc" },
+      skip: (requestedPage - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      include: { author: true },
+    }),
+  ]);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = clampPage(requestedPage, totalPages);
 
   const policies = await prisma.visibilityPolicy.findMany({
     where: { resourceType: "BLOG_POST", resourceId: { in: posts.map((p) => p.id) } },

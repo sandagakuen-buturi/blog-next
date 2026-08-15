@@ -4,23 +4,26 @@ import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PERMISSIONS } from "@/lib/permissions";
-import { PaginationControls, resolvePage } from "@/components/pagination-controls";
+import { PaginationControls, parsePage, clampPage } from "@/components/pagination-controls";
 
 const PAGE_SIZE = 50;
 
 export default async function QaListPage(props: PageProps<"/qa">) {
   const user = await verifySession();
 
-  const total = await prisma.qaQuestion.count();
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const page = resolvePage((await props.searchParams).page, totalPages);
+  const requestedPage = parsePage((await props.searchParams).page);
 
-  const questions = await prisma.qaQuestion.findMany({
-    include: { author: true, answers: true },
-    orderBy: { createdAt: "desc" },
-    skip: (page - 1) * PAGE_SIZE,
-    take: PAGE_SIZE,
-  });
+  const [total, questions] = await prisma.$transaction([
+    prisma.qaQuestion.count(),
+    prisma.qaQuestion.findMany({
+      include: { author: true, answers: true },
+      orderBy: { createdAt: "desc" },
+      skip: (requestedPage - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+  ]);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = clampPage(requestedPage, totalPages);
 
   const canAsk = (user.role.permissions & PERMISSIONS.CAN_ASK_QA) !== 0n;
 

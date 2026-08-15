@@ -2,23 +2,26 @@ import { requirePermission } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/permissions";
 import { AuditLogTable } from "./audit-log-table";
-import { PaginationControls, resolvePage } from "@/components/pagination-controls";
+import { PaginationControls, parsePage, clampPage } from "@/components/pagination-controls";
 
 const PAGE_SIZE = 200;
 
 export default async function AuditLogPage(props: PageProps<"/admin/audit-log">) {
   await requirePermission(PERMISSIONS.CAN_VIEW_AUDIT_LOG);
 
-  const total = await prisma.auditLog.count();
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const page = resolvePage((await props.searchParams).page, totalPages);
+  const requestedPage = parsePage((await props.searchParams).page);
 
-  const logs = await prisma.auditLog.findMany({
-    include: { actor: true },
-    orderBy: { createdAt: "desc" },
-    skip: (page - 1) * PAGE_SIZE,
-    take: PAGE_SIZE,
-  });
+  const [total, logs] = await prisma.$transaction([
+    prisma.auditLog.count(),
+    prisma.auditLog.findMany({
+      include: { actor: true },
+      orderBy: { createdAt: "desc" },
+      skip: (requestedPage - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+  ]);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = clampPage(requestedPage, totalPages);
 
   return (
     <main className="mx-auto flex max-w-4xl flex-col gap-6 p-8">

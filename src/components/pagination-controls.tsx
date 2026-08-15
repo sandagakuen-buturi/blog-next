@@ -40,9 +40,18 @@ export function PaginationControls({
   );
 }
 
-export function resolvePage(pageParam: string | string[] | undefined, totalPages: number) {
+/**
+ * ページ番号だけをsearchParamsから読む(下限1のみ)。総件数(totalPages)にはまだ依存しないため、
+ * count()の完了を待たずに呼べる — count()とfindMany()をprisma.$transaction()で1往復に
+ * まとめるには、findMany()のskipを計算するのに使うこの値をtotal取得より先に決める必要がある。
+ */
+export function parsePage(pageParam: string | string[] | undefined): number {
   const raw = Array.isArray(pageParam) ? pageParam[0] : pageParam;
   const parsed = Number.parseInt(raw ?? "1", 10);
-  if (!Number.isFinite(parsed) || parsed < 1) return 1;
-  return Math.min(parsed, Math.max(totalPages, 1));
+  return !Number.isFinite(parsed) || parsed < 1 ? 1 : parsed;
+}
+
+/** 総ページ数が判明した後、表示用にページ番号を有効範囲へ丸める。 */
+export function clampPage(page: number, totalPages: number): number {
+  return Math.min(page, Math.max(totalPages, 1));
 }
