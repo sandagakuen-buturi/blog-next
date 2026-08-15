@@ -1,5 +1,7 @@
+import "server-only";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import type { WebhookScope } from "@/lib/discord";
 
 /**
  * ロール一覧はセレクトボックス/テーブル表示にしか使わないページが大半で、変更頻度も低い
@@ -47,4 +49,21 @@ export const getCachedBoards = unstable_cache(
     }),
   ["boards"],
   { tags: ["boards"], revalidate: 60 },
+);
+
+/**
+ * notifyDiscord()はブログ投稿・コメント・申請提出/決裁等、書き込み系アクションのほぼ全てから
+ * 呼ばれるため、Webhook URL(DB)の参照回数が非常に多い。設定は管理者操作でしか変わらないので
+ * タグ付きキャッシュとし、admin/webhooks/actions.tsの保存時にrevalidateTagで即時反映する。
+ */
+export const getCachedDiscordWebhook = unstable_cache(
+  async (scope: WebhookScope) => prisma.discordWebhook.findUnique({ where: { scope } }),
+  ["discord-webhook"],
+  { tags: ["discord-webhooks"], revalidate: 300 },
+);
+
+export const getCachedDiscordWebhooks = unstable_cache(
+  async () => prisma.discordWebhook.findMany(),
+  ["discord-webhooks-all"],
+  { tags: ["discord-webhooks"], revalidate: 300 },
 );

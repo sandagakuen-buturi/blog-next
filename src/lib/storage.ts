@@ -1,5 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
+import { unstable_cache } from "next/cache";
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -38,6 +39,19 @@ export async function createPresignedDownloadUrl(key: string) {
   const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
   return getSignedUrl(getClient(), command, { expiresIn: 300 });
 }
+
+/**
+ * 添付ファイルの閲覧は同じ記事/申請を開くたびに(画像1枚ごとに)発生するため、
+ * S3互換ストレージへの署名リクエストをキーごとにキャッシュして回数を減らす。
+ * オブジェクトキーはアップロードのたびにrandomUUIDで新規発行され不変なので、
+ * URLの有効期限(5分)より短いrevalidateであれば期限切れURLを返す心配はない。
+ * 呼び出し前に必ずcanView()等の権限チェックを済ませておくこと(この関数自体は認可をしない)。
+ */
+export const getCachedPresignedDownloadUrl = unstable_cache(
+  (key: string) => createPresignedDownloadUrl(key),
+  ["attachment-download-url"],
+  { revalidate: 240 },
+);
 
 /** リソース削除時に添付ファイルの実体もオブジェクトストレージから削除する。 */
 export async function deleteObject(key: string) {

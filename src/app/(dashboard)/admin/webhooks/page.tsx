@@ -1,7 +1,7 @@
 import { requirePermission } from "@/lib/dal";
-import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/permissions";
 import { WebhookForm } from "./webhook-form";
+import { getCachedDiscordWebhooks } from "@/lib/cached-queries";
 
 const SCOPES = [
   { value: "IT", label: "IT課" },
@@ -13,7 +13,7 @@ const SCOPES = [
 export default async function AdminWebhooksPage() {
   await requirePermission(PERMISSIONS.CAN_MANAGE_WEBHOOKS);
 
-  const webhooks = await prisma.discordWebhook.findMany();
+  const webhooks = await getCachedDiscordWebhooks();
   const configuredScopes = new Set(webhooks.map((w) => w.scope));
 
   return (

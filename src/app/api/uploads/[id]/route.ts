@@ -4,7 +4,7 @@ import { verifySession } from "@/lib/dal";
 import { canView } from "@/lib/visibility";
 import { resolveApprovers } from "@/lib/approval";
 import { PERMISSIONS } from "@/lib/permissions";
-import { createPresignedDownloadUrl } from "@/lib/storage";
+import { getCachedPresignedDownloadUrl } from "@/lib/storage";
 
 async function canViewAttachment(
   user: Parameters<typeof canView>[0] & { role: { permissions: bigint } },
@@ -42,6 +42,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "この添付ファイルを閲覧する権限がありません。" }, { status: 403 });
   }
 
-  const url = await createPresignedDownloadUrl(attachment.key);
+  const url = await getCachedPresignedDownloadUrl(attachment.key);
   return NextResponse.redirect(url);
 }

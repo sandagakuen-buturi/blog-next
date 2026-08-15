@@ -1,5 +1,5 @@
 import "server-only";
-import { prisma } from "@/lib/prisma";
+import { getCachedDiscordWebhook } from "@/lib/cached-queries";
 import { decryptSecret } from "@/lib/crypto";
 
 export type WebhookScope = "IT" | "ROBOT" | "HYBRID" | "SYSTEM";
@@ -38,7 +38,7 @@ export async function notifyDiscord(
   scope: WebhookScope,
   notification: string | DiscordNotification,
 ): Promise<void> {
-  const webhook = await prisma.discordWebhook.findUnique({ where: { scope } });
+  const webhook = await getCachedDiscordWebhook(scope);
   if (!webhook) return;
 
   const { content, url, rawSource } =
