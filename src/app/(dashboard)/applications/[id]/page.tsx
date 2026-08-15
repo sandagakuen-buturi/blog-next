@@ -47,15 +47,17 @@ export default async function ApplicationDetailPage({
   const canManageTemplates =
     (user.role.permissions & PERMISSIONS.CAN_MANAGE_APPLICATION_TEMPLATES) !== 0n;
 
-  const currentStep = application.template.steps.find(
+  const currentStepIndex = application.template.steps.findIndex(
     (s) => s.order === application.currentStep,
   );
-  const currentApprovers = currentStep ? await resolveApprovers(currentStep) : [];
-  const isCurrentApprover = currentApprovers.some((a) => a.id === user.id);
 
-  const isAnyStepApprover = (
-    await Promise.all(application.template.steps.map((s) => resolveApprovers(s)))
-  ).some((approvers) => approvers.some((a) => a.id === user.id));
+  // 全ステップ分の承認者解決を1回のPromise.allにまとめる
+  // (currentStepも含まれるため、以前は同じステップに対しresolveApproversを2回呼んでいた)。
+  const approversByStep = await Promise.all(application.template.steps.map((s) => resolveApprovers(s)));
+
+  const currentApprovers = currentStepIndex >= 0 ? approversByStep[currentStepIndex] : [];
+  const isCurrentApprover = currentApprovers.some((a) => a.id === user.id);
+  const isAnyStepApprover = approversByStep.some((approvers) => approvers.some((a) => a.id === user.id));
 
   if (!isApplicant && !isAnyStepApprover && !canManageTemplates) {
     notFound();

@@ -30,15 +30,20 @@ export default async function ApplicationsPage() {
     }),
   ]);
 
-  const myPendingDecisions = [];
-  for (const application of pendingApplications) {
-    const step = application.template.steps.find((s) => s.order === application.currentStep);
-    if (!step) continue;
-    const approvers = await resolveApprovers(step);
-    if (approvers.some((a) => a.id === user.id)) {
-      myPendingDecisions.push(application);
-    }
-  }
+  const pendingWithStep = pendingApplications
+    .map((application) => ({
+      application,
+      step: application.template.steps.find((s) => s.order === application.currentStep),
+    }))
+    .filter((entry): entry is { application: (typeof pendingApplications)[number]; step: NonNullable<typeof entry.step> } =>
+      Boolean(entry.step),
+    );
+
+  const approversByEntry = await Promise.all(pendingWithStep.map((entry) => resolveApprovers(entry.step)));
+
+  const myPendingDecisions = pendingWithStep
+    .filter((_, index) => approversByEntry[index].some((a) => a.id === user.id))
+    .map((entry) => entry.application);
 
   const canManageTemplates = (user.role.permissions & PERMISSIONS.CAN_MANAGE_APPLICATION_TEMPLATES) !== 0n;
 

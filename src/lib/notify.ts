@@ -26,22 +26,23 @@ export async function notifyApplicationEvent(params: {
 
   const users = await prisma.user.findMany({ where: { id: { in: userIds } } });
 
-  await Promise.all(users.map((u) => notifyInApp(u.id, type, message, link)));
-
-  await notifyDiscord("SYSTEM", { content: `🔔 ${message}`, url: absoluteUrl(link) });
-
-  if (resend) {
-    await Promise.all(
-      users.map((u) =>
-        resend!.emails
-          .send({
-            from: "物理部ブログ <onboarding@resend.dev>",
-            to: u.email,
-            subject: "【物理部ブログ】申請の通知",
-            text: message,
-          })
-          .catch((error) => console.error("[resend] failed to send notification email:", error)),
-      ),
-    );
-  }
+  // サイト内通知・Discord・メールは互いに依存しない独立した送信先なので並列実行する。
+  await Promise.all([
+    Promise.all(users.map((u) => notifyInApp(u.id, type, message, link))),
+    notifyDiscord("SYSTEM", { content: `🔔 ${message}`, url: absoluteUrl(link) }),
+    resend
+      ? Promise.all(
+          users.map((u) =>
+            resend!.emails
+              .send({
+                from: "物理部ブログ <onboarding@resend.dev>",
+                to: u.email,
+                subject: "【物理部ブログ】申請の通知",
+                text: message,
+              })
+              .catch((error) => console.error("[resend] failed to send notification email:", error)),
+          ),
+        )
+      : Promise.resolve(),
+  ]);
 }
