@@ -6,7 +6,7 @@ import { fieldDefSchema } from "@/lib/application-fields";
 import { PERMISSIONS } from "@/lib/permissions";
 import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
-import { AttachmentList } from "@/components/attachment-list";
+import { ClientAttachmentList } from "@/components/client-attachment-list";
 import { FileUploadWidget } from "@/components/file-upload-widget";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DecisionForm } from "./decision-form";
@@ -63,6 +63,11 @@ export default async function ApplicationDetailPage({
     notFound();
   }
 
+  const attachments = await prisma.attachment.findMany({
+    where: { resourceType: "APPLICATION", resourceId: application.id },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, fileName: true, contentType: true, createdAt: true },
+  });
   const fields = z.array(fieldDefSchema).parse(application.template.fields);
   const data = application.data as Record<string, unknown>;
 
@@ -100,7 +105,15 @@ export default async function ApplicationDetailPage({
 
       <div className="flex flex-col gap-2">
         <h2 className="text-lg font-semibold">添付ファイル</h2>
-        <AttachmentList resourceType="APPLICATION" resourceId={application.id} />
+        <ClientAttachmentList
+          resourceType="APPLICATION"
+          resourceId={application.id}
+          initialAttachments={attachments.map((attachment) => ({
+            ...attachment,
+            createdAt: attachment.createdAt.toISOString(),
+            url: `/api/uploads/${attachment.id}`,
+          }))}
+        />
         {isApplicant && <FileUploadWidget resourceType="APPLICATION" resourceId={application.id} />}
       </div>
 
