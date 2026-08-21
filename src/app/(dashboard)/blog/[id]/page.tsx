@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { canView } from "@/lib/visibility";
 import { PERMISSIONS } from "@/lib/permissions";
 import { SafeMarkdown } from "@/components/safe-markdown";
-import { AttachmentList } from "@/components/attachment-list";
+import { ClientAttachmentList } from "@/components/client-attachment-list";
 import { FileUploadWidget } from "@/components/file-upload-widget";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CommentSection } from "./comment-section";
@@ -31,6 +31,11 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
     where: { postId: post.id },
     include: { author: true },
     orderBy: { createdAt: "asc" },
+  });
+  const attachments = await prisma.attachment.findMany({
+    where: { resourceType: "BLOG_POST", resourceId: post.id },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, fileName: true, contentType: true, createdAt: true },
   });
 
   const canModerate = (user.role.permissions & PERMISSIONS.CAN_MODERATE_BLOG) !== 0n;
@@ -61,7 +66,15 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
 
       <SafeMarkdown>{post.bodyMarkdown}</SafeMarkdown>
 
-      <AttachmentList resourceType="BLOG_POST" resourceId={post.id} />
+      <ClientAttachmentList
+        resourceType="BLOG_POST"
+        resourceId={post.id}
+        initialAttachments={attachments.map((attachment) => ({
+          ...attachment,
+          createdAt: attachment.createdAt.toISOString(),
+          url: `/api/uploads/${attachment.id}`,
+        }))}
+      />
 
       {canDelete && <FileUploadWidget resourceType="BLOG_POST" resourceId={post.id} />}
 

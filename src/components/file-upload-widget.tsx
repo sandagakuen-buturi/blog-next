@@ -1,10 +1,10 @@
 "use client";
 
-import { useRef, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAttachmentUpload, type UploadResourceType } from "@/hooks/use-attachment-upload";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
@@ -12,12 +12,11 @@ export function FileUploadWidget({
   resourceType,
   resourceId,
 }: {
-  resourceType: "BLOG_POST" | "APPLICATION";
+  resourceType: UploadResourceType;
   resourceId: string;
 }) {
-  const [isPending, startTransition] = useTransition();
-  const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const upload = useAttachmentUpload({ resourceType, resourceId });
 
   function handleUpload(file: File) {
     if (file.size > MAX_FILE_SIZE_BYTES) {
@@ -25,34 +24,14 @@ export function FileUploadWidget({
       return;
     }
 
-    startTransition(async () => {
-      try {
-        const res = await fetch("/api/uploads", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            resourceType,
-            resourceId,
-            fileName: file.name,
-            contentType: file.type,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "アップロードURLの取得に失敗しました。");
-
-        const putRes = await fetch(data.uploadUrl, {
-          method: "PUT",
-          headers: { "Content-Type": file.type },
-          body: file,
-        });
-        if (!putRes.ok) throw new Error("ファイルのアップロードに失敗しました。");
-
+    upload.mutate(file, {
+      onSuccess: () => {
         toast.success("添付しました。");
         if (inputRef.current) inputRef.current.value = "";
-        router.refresh();
-      } catch (error) {
+      },
+      onError: (error) => {
         toast.error(error instanceof Error ? error.message : "添付に失敗しました。");
-      }
+      },
     });
   }
 
@@ -61,14 +40,14 @@ export function FileUploadWidget({
       <Input
         ref={inputRef}
         type="file"
-        disabled={isPending}
+        disabled={upload.isPending}
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) handleUpload(file);
         }}
         className="max-w-64"
       />
-      {isPending && (
+      {upload.isPending && (
         <Button type="button" variant="ghost" disabled>
           アップロード中...
         </Button>

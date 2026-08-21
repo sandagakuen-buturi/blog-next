@@ -45,6 +45,8 @@ model User {
   auditLogs        AuditLog[]
   notifications    Notification[]
   attachments      Attachment[]
+
+  @@index([roleId])
 }
 
 model Session {
@@ -187,6 +189,9 @@ model Application {
   updatedAt    DateTime            @updatedAt
 
   history ApplicationDecision[]
+
+  @@index([applicantId, createdAt])
+  @@index([status, createdAt])
 }
 
 enum DecisionType {
@@ -223,6 +228,8 @@ model BlogPost {
   updatedAt    DateTime   @updatedAt
 
   comments Comment[]
+
+  @@index([publishedAt])
 }
 
 model Comment {
@@ -236,6 +243,8 @@ model Comment {
   replies   Comment[] @relation("CommentReplies")
   body      String
   createdAt DateTime  @default(now())
+
+  @@index([postId, createdAt])
 }
 
 // ---------------------------------------------------------------------------
@@ -263,6 +272,8 @@ model QaAnswer {
   body         String
   isBestAnswer Boolean    @default(false)
   createdAt    DateTime   @default(now())
+
+  @@index([questionId, createdAt])
 }
 
 // ---------------------------------------------------------------------------
@@ -289,6 +300,8 @@ model Thread {
   createdAt DateTime @default(now())
 
   posts Post[]
+
+  @@index([boardId, createdAt])
 }
 
 model Post {
@@ -299,6 +312,8 @@ model Post {
   author    User     @relation(fields: [authorId], references: [id])
   body      String
   createdAt DateTime @default(now())
+
+  @@index([threadId, createdAt])
 }
 
 // ---------------------------------------------------------------------------
@@ -319,6 +334,8 @@ model EmailAudit {
   recipients String[]
   subject    String
   sentAt     DateTime @default(now())
+
+  @@index([sentAt])
 }
 
 model AuditLog {
@@ -331,6 +348,8 @@ model AuditLog {
   before     Json?
   after      Json?
   createdAt  DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model Notification {
@@ -342,6 +361,9 @@ model Notification {
   link      String?
   readAt    DateTime?
   createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
 }
 
 /**
