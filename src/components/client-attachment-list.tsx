@@ -24,7 +24,7 @@ export function ClientAttachmentList({
     return <p className="text-muted-foreground text-sm">添付ファイルを読み込み中...</p>;
   }
 
-  if (error) {
+  if (error && !data) {
     return (
       <p className="text-destructive text-sm">
         {error instanceof Error ? error.message : "添付ファイルの取得に失敗しました。"}
